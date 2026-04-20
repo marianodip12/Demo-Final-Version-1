@@ -38,7 +38,7 @@ export function LiveMatch({
   const homeC = homeTeam?.color || T.accent;
   const awayC = "#64748b";
 
-  const { score, stats, heatCounts, byQuadrant, pendingEvents } = useMatchStats(events);
+  const { score, stats, heatCounts, homeHeatCounts, awayHeatCounts, byQuadrant, homeByQuadrant, awayByQuadrant, pendingEvents } = useMatchStats(events);
   const insights = useInsights(stats);
 
   // ─── TIMER ──────────────────────────────────────────────
@@ -255,30 +255,31 @@ export function LiveMatch({
       {/* Insights */}
       <InsightBanner insights={insights} />
 
+
       {/* Court module — registra tiros directamente */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 9, color: T.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>REGISTRAR TIRO</div>
-        <CourtModule
-          heatCounts={heatCounts}
-          byQuadrant={byQuadrant}
-          activeTeam={activeTeam}
-          homeTeam={homeTeam}
-          awayTeam={{ name: matchInfo.away, color: awayC }}
-          onTeamChange={setActiveTeam}
-          onRegister={({ zone, quadrant, type }) => {
-            const sc = calcNextScore(events, type, activeTeam);
-            const min = timerRunning || timerSecs < 30 * 60 ? realMinute : 1;
-            const ev = {
-              id: Date.now(), min, team: activeTeam, type,
-              zone, quadrant, situation: "igualdad",
-              shooter: null, goalkeeper: null, sanctioned: null,
-              completed: true, ...sc,
-            };
-            setEvents(prev => [...prev, ev]);
-            saveEv(ev);
-          }}
-        />
-      </div>
+      <CourtModule
+        homeHeatCounts={homeHeatCounts}
+        awayHeatCounts={awayHeatCounts}
+        homeByQuadrant={homeByQuadrant}
+        awayByQuadrant={awayByQuadrant}
+        activeTeam={activeTeam}
+        homeTeam={homeTeam}
+        awayTeam={{ name: matchInfo.away, color: awayC }}
+        onTeamChange={setActiveTeam}
+        onRegister={({ zone, quadrant, goalSection, type }) => {
+          const sc = calcNextScore(events, type, activeTeam);
+          const min = timerRunning || timerSecs < 30 * 60 ? realMinute : 1;
+          const ev = {
+            id: Date.now(), min, team: activeTeam, type,
+            zone, quadrant, goalSection,
+            situation: "igualdad",
+            shooter: null, goalkeeper: null, sanctioned: null,
+            completed: true, ...sc,
+          };
+          setEvents(prev => [...prev, ev]);
+          saveEv(ev);
+        }}
+      />
 
       {/* Event buttons */}
       <div style={{ marginBottom: 12 }}>
@@ -402,12 +403,14 @@ export function LiveMatch({
                 style={{ background: T.card2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "11px 14px", color: T.text, fontSize: 15, fontWeight: 800, width: "100%", boxSizing: "border-box" }} />
             </div>
             <CourtModule
-              heatCounts={heatCounts}
-              byQuadrant={byQuadrant}
+              homeHeatCounts={homeHeatCounts}
+              awayHeatCounts={awayHeatCounts}
+              homeByQuadrant={homeByQuadrant}
+              awayByQuadrant={awayByQuadrant}
               activeTeam={form.team}
               homeTeam={homeTeam}
               awayTeam={{ name: matchInfo.away, color: awayC }}
-              onRegister={({ zone, quadrant, type }) => { upd("zone", zone); upd("quadrant", quadrant); upd("type", type); }}
+              onRegister={({ zone, quadrant, goalSection, type }) => { upd("zone", zone); upd("quadrant", quadrant); upd("type", type); }}
             />
             <QuadrantPicker value={form.quadrant} onChange={q => upd("quadrant", q)} resultColor={form.type === "goal" ? T.green : form.type === "saved" ? "#60a5fa" : T.red} />
             <PlayerPicker

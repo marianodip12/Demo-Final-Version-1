@@ -8,6 +8,7 @@ export const mapDbEvent = (e) => ({
   type: e.type,
   zone: e.zone,
   quadrant: e.quadrant,
+  goalSection: e.goal_section || null,
   attackSide: e.attack_side,
   distance: e.distance || null,
   situation: e.situation || null,
@@ -51,8 +52,8 @@ export const calcNextScore = (events, type, team) => {
 export const computeMatchStats = (events) => {
   const homeGoals   = events.filter(e => e.type === "goal" && e.team === "home").length;
   const awayGoals   = events.filter(e => e.type === "goal" && e.team === "away").length;
-  const homeShots   = events.filter(e => ["goal","miss","saved"].includes(e.type) && e.team === "home").length;
-  const awayShots   = events.filter(e => ["goal","miss","saved"].includes(e.type) && e.team === "away").length;
+  const homeShots   = events.filter(e => ["goal","miss","saved","post"].includes(e.type) && e.team === "home").length;
+  const awayShots   = events.filter(e => ["goal","miss","saved","post"].includes(e.type) && e.team === "away").length;
   const homeSaved   = events.filter(e => e.type === "saved" && e.team === "home").length;
   const awaySaved   = events.filter(e => e.type === "saved" && e.team === "away").length;
   const homeMiss    = events.filter(e => e.type === "miss" && e.team === "home").length;
@@ -67,14 +68,15 @@ export const computeMatchStats = (events) => {
   const homePct = homeShots ? Math.round(homeGoals / homeShots * 100) : 0;
   const awayPct = awayShots ? Math.round(awayGoals / awayShots * 100) : 0;
 
-  // Rival goalkeeper saves (shots on home team = away team's goalkeeper saves)
-  const rivalGKTotal = homeShots;
+  // GK % = saves / (goals + saves)  ← tiros al arco reales (excluye errados/palos)
   const rivalGKSaved = homeSaved;
+  const rivalGKGoals = homeGoals;
+  const rivalGKTotal = rivalGKSaved + rivalGKGoals;   // tiros al arco del equipo local
   const rivalGKPct   = rivalGKTotal ? Math.round(rivalGKSaved / rivalGKTotal * 100) : 0;
 
-  // Home goalkeeper saves (shots on away team)
   const homeGKSaved = awaySaved;
-  const homeGKTotal = awayShots;
+  const homeGKGoals = awayGoals;
+  const homeGKTotal = homeGKSaved + homeGKGoals;      // tiros al arco del equipo visitante
   const homeGKPct   = homeGKTotal ? Math.round(homeGKSaved / homeGKTotal * 100) : 0;
 
   // Penalties
@@ -141,6 +143,14 @@ export const buildGoalkeeperMap = (events, team) => {
 export const buildHeatCounts = (events) => {
   const c = {};
   events.filter(e => e.zone).forEach(e => {
+    c[e.zone] = (c[e.zone] || 0) + 1;
+  });
+  return c;
+};
+
+export const buildHeatCountsByTeam = (events, team) => {
+  const c = {};
+  events.filter(e => e.zone && e.team === team).forEach(e => {
     c[e.zone] = (c[e.zone] || 0) + 1;
   });
   return c;
