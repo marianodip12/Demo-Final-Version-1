@@ -25,45 +25,60 @@ function StatBar({ label, home, away, homeColor = T.accent, awayColor = "#64748b
 
 function GoalMap({ byQ, mode }) {
   const modeColor = mode === "goals" ? T.green : mode === "saved" ? "#60a5fa" : mode === "miss" ? T.red : T.yellow;
-  const maxV = Math.max(...byQ.map(q => mode === "goals" ? q.goals : mode === "saved" ? q.saved : mode === "miss" ? q.miss : q.total), 1);
-  const rows = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+  const getVal = (q) => mode === "goals" ? q.goals : mode === "saved" ? q.saved : mode === "miss" ? (q.miss||0)+(q.post||0) : q.total;
+  const maxV = Math.max(...byQ.map(getVal), 1);
+
+  // SVG goal: viewBox 0 0 320 140, same as CourtModule
+  // Cols: 6..108 | 109..211 | 212..314 | rows: 9..52 | 53..96 | 97..139
+  const GX=[6,109,212], GW=[102,102,102], GY=[9,53,97], GH=43;
+  const z9=[
+    {gz:0,c:0,r:0},{gz:1,c:1,r:0},{gz:2,c:2,r:0},
+    {gz:3,c:0,r:1},{gz:4,c:1,r:1},{gz:5,c:2,r:1},
+    {gz:6,c:0,r:2},{gz:7,c:1,r:2},{gz:8,c:2,r:2},
+  ];
+
   return (
     <div>
-      <div style={{ background: "#0c2340", borderRadius: 10, padding: "8px 6px", marginBottom: 8, border: `1px solid ${T.border}` }}>
-        <svg viewBox="0 0 100 40" width="100%" style={{ display: "block" }}>
-          <rect x="20" y="2" width="60" height="36" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="1.5" />
-          <line x1="40" y1="2" x2="40" y2="38" stroke="rgba(255,255,255,.25)" strokeWidth=".8" />
-          <line x1="60" y1="2" x2="60" y2="38" stroke="rgba(255,255,255,.25)" strokeWidth=".8" />
-          <line x1="20" y1="15" x2="80" y2="15" stroke="rgba(255,255,255,.25)" strokeWidth=".8" />
-          <line x1="20" y1="27" x2="80" y2="27" stroke="rgba(255,255,255,.25)" strokeWidth=".8" />
-        </svg>
-      </div>
-      {rows.map((row, ri) => (
-        <div key={ri} style={{ display: "flex", gap: 4, marginBottom: ri < 2 ? 4 : 0 }}>
-          {row.map(qi => {
-            const q = byQ[qi];
-            const val = mode === "goals" ? q.goals : mode === "saved" ? q.saved : mode === "miss" ? q.miss : q.total;
-            const intensity = q.total > 0 ? val / maxV : 0;
+      <div style={{ background: "#0a1e3a", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}` }}>
+        <svg viewBox="0 0 320 140" width="100%" style={{ display: "block" }} preserveAspectRatio="xMidYMid meet">
+          {/* Interior */}
+          <rect x="6" y="8" width="308" height="132" fill="#0d2240"/>
+          {/* Grid */}
+          <line x1="6"   y1="52"  x2="314" y2="52"  stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+          <line x1="6"   y1="96"  x2="314" y2="96"  stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+          <line x1="108" y1="8"   x2="108" y2="140" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+          <line x1="211" y1="8"   x2="211" y2="140" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+          {[56,160,265].map(x=><line key={x} x1={x} y1="8" x2={x} y2="140" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>)}
+          {[30,74,118].map(y=><line key={y} x1="6" y1={y} x2="314" y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>)}
+          {/* 9 zones */}
+          {z9.map(({gz,c,r})=>{
+            const q=byQ?.find(q=>q.id===gz)||{goals:0,saved:0,miss:0,total:0};
+            const val=getVal(q);
+            const intensity=maxV>0?val/maxV:0;
+            const x=GX[c], y=GY[r], w=GW[c], h=GH;
+            const bg = intensity>0
+              ? `${modeColor}${Math.round(intensity*0.55*255).toString(16).padStart(2,"0")}`
+              : "rgba(255,255,255,0.04)";
             return (
-              <div key={qi} style={{
-                flex: 1, borderRadius: 8, padding: "8px 4px", textAlign: "center",
-                background: intensity > 0 ? modeColor + Math.round(intensity * 0.35 * 255).toString(16).padStart(2, "0") : "rgba(0,0,0,.2)",
-                border: `1px solid ${intensity > 0 ? modeColor + "55" : T.border}`,
-                minHeight: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
-              }}>
-                {q.total > 0 ? (
-                  <>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: intensity > 0 ? modeColor : T.muted, lineHeight: 1 }}>{val}</div>
-                    <div style={{ fontSize: 8, color: T.muted }}>{QUADRANTS[qi].icon}</div>
-                  </>
-                ) : (
-                  <span style={{ fontSize: 12, color: T.muted }}>{QUADRANTS[qi].icon}</span>
-                )}
-              </div>
+              <g key={gz}>
+                <rect x={x} y={y} width={w} height={h} rx="2" fill={bg}
+                  stroke={intensity>0?modeColor+"55":"rgba(255,255,255,0.13)"} strokeWidth="1"/>
+                {val>0
+                  ? <text x={x+w/2} y={y+h/2+5} textAnchor="middle" fill="#fff"
+                      fontSize="15" fontWeight="900" fontFamily="Arial,sans-serif"
+                      style={{pointerEvents:"none"}}>{val}</text>
+                  : <text x={x+w/2} y={y+h/2+4} textAnchor="middle"
+                      fill="rgba(255,255,255,0.18)" fontSize="13"
+                      style={{pointerEvents:"none"}}>{QUADRANTS[gz]?.icon}</text>}
+              </g>
             );
           })}
-        </div>
-      ))}
+          {/* Goal frame */}
+          <line x1="0"   y1="8" x2="320" y2="8"   stroke="#e8453c" strokeWidth="6" strokeLinecap="round"/>
+          <line x1="5"   y1="8" x2="5"   y2="140" stroke="#e8453c" strokeWidth="6" strokeLinecap="round"/>
+          <line x1="315" y1="8" x2="315" y2="140" stroke="#e8453c" strokeWidth="6" strokeLinecap="round"/>
+        </svg>
+      </div>
     </div>
   );
 }
@@ -82,8 +97,8 @@ export function MatchAnalysis({ matchEvents = [], matchTitle, onBack, homeTeamNa
   const awayName = matchData?.away || "Rival";
 
   const scorers = useMemo(() => buildScorers(matchEvents), [matchEvents]);
-  const homeShots = useMemo(() => matchEvents.filter(e => ["goal","miss","saved"].includes(e.type) && e.team === "home"), [matchEvents]);
-  const awayShots = useMemo(() => matchEvents.filter(e => ["goal","miss","saved"].includes(e.type) && e.team === "away"), [matchEvents]);
+  const homeShots = useMemo(() => matchEvents.filter(e => ["goal","miss","saved","post"].includes(e.type) && e.team === "home"), [matchEvents]);
+  const awayShots = useMemo(() => matchEvents.filter(e => ["goal","miss","saved","post"].includes(e.type) && e.team === "away"), [matchEvents]);
   const homeByQ = useMemo(() => buildByQuadrant(homeShots), [homeShots]);
   const awayByQ = useMemo(() => buildByQuadrant(awayShots), [awayShots]);
 
